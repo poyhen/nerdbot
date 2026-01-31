@@ -1,0 +1,32 @@
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
+
+export default defineSchema({
+  messages: defineTable({
+    chatId: v.number(),
+    userId: v.optional(v.number()),
+    userName: v.optional(v.string()),
+    role: v.union(v.literal("user"), v.literal("assistant")),
+    text: v.string(),
+    telegramMessageId: v.optional(v.number()),
+    timestamp: v.number(),
+  })
+    .index("by_chat", ["chatId", "timestamp"])
+    .index("by_chat_recent", ["chatId"]),
+
+  chats: defineTable({
+    chatId: v.number(),
+    chatTitle: v.optional(v.string()),
+    systemPrompt: v.optional(v.string()),
+    maxContextMessages: v.optional(v.number()),
+    enabled: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_chatId", ["chatId"]),
+
+  rateLimits: defineTable({
+    chatId: v.number(),
+    userId: v.number(),
+    windowStart: v.number(),
+    count: v.number(),
+  }).index("by_chat_user", ["chatId", "userId"]),
+});
