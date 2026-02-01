@@ -61,9 +61,15 @@ http.route({
 
     // 3. Check allowlists
     if (!isAllowedUser(userId, process.env.ALLOWED_USER_IDS ?? "")) {
+      console.warn(
+        `[BLOCKED] User not allowed — userId: ${userId}, name: ${userName}, chat: ${chatId} (${message.chat.type})`,
+      );
       return new Response("OK", { status: 200 });
     }
     if (!isAllowedChat(chatId, message.chat.type, process.env.ALLOWED_GROUP_IDS ?? "")) {
+      console.warn(
+        `[BLOCKED] Group not allowed — chatId: ${chatId}, title: ${chatTitle ?? "unknown"}, userId: ${userId}`,
+      );
       return new Response("OK", { status: 200 });
     }
 
