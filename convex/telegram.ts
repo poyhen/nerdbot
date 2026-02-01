@@ -35,7 +35,7 @@ export const processMessage = internalAction({
     const aiProvider = process.env.AI_PROVIDER ?? "moonshot";
     const aiApiKey = requireEnv("AI_API_KEY");
     const aiModel = process.env.AI_MODEL ?? "kimi-k2-0711-preview";
-    const webSearch = process.env.MOONSHOT_WEB_SEARCH === "true";
+    const webSearch = process.env.WEB_SEARCH === "true";
 
     const log = createLogger("process_message")
       .set("chatId", args.chatId)

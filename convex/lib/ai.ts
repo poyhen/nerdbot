@@ -53,6 +53,28 @@ interface MoonshotTool {
   function: { name: string };
 }
 
+interface ResponsesAPIOutputText {
+  type: "output_text";
+  text: string;
+}
+
+interface ResponsesAPIMessageOutput {
+  type: "message";
+  content: ResponsesAPIOutputText[];
+}
+
+interface ResponsesAPIWebSearchOutput {
+  type: "web_search_call";
+}
+
+type ResponsesAPIOutput = ResponsesAPIMessageOutput | ResponsesAPIWebSearchOutput;
+
+interface ResponsesAPIResponse {
+  id: string;
+  output: ResponsesAPIOutput[];
+  usage?: { prompt_tokens?: number; completion_tokens?: number };
+}
+
 async function callClaude(
   apiKey: string,
   model: string,
@@ -94,6 +116,7 @@ async function callClaude(
 const OPENAI_COMPATIBLE_ENDPOINTS: Record<string, string> = {
   openai: "https://api.openai.com/v1/chat/completions",
   moonshot: "https://api.moonshot.ai/v1/chat/completions",
+  grok: "https://api.x.ai/v1/chat/completions",
 };
 
 async function callOpenAICompatible(
@@ -249,6 +272,67 @@ async function callMoonshotWithSearch(
   throw new Error("moonshot web search exceeded maximum iterations");
 }
 
+const RESPONSES_API_ENDPOINTS: Record<string, string> = {
+  openai: "https://api.openai.com/v1/responses",
+  grok: "https://api.x.ai/v1/responses",
+};
+
+async function callResponsesAPIWithSearch(
+  provider: string,
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  messages: ConversationMessage[],
+): Promise<AIResponse> {
+  const url = RESPONSES_API_ENDPOINTS[provider];
+  if (!url) {
+    throw new Error(`No Responses API endpoint configured for provider: ${provider}`);
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      input: [
+        { role: "system", content: systemPrompt },
+        ...messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+      ],
+      tools: [{ type: "web_search" }],
+      store: false,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`${provider} API error: ${response.status} - ${error}`);
+  }
+
+  const data = (await response.json()) as ResponsesAPIResponse;
+
+  const messageOutput = data.output.find(
+    (item): item is ResponsesAPIMessageOutput => item.type === "message",
+  );
+  const text = messageOutput?.content[0]?.text ?? "";
+
+  const searchCalls = data.output.filter((item) => item.type === "web_search_call");
+
+  return {
+    text,
+    inputTokens: data.usage?.prompt_tokens,
+    outputTokens: data.usage?.completion_tokens,
+    ...(searchCalls.length > 0 && {
+      webSearchQueries: [`web_search (${searchCalls.length} call(s))`],
+    }),
+  };
+}
+
 export async function generateResponse(
   provider: string,
   apiKey: string,
@@ -265,7 +349,27 @@ export async function generateResponse(
         return callMoonshotWithSearch(apiKey, model, systemPrompt, messages);
       }
       return callOpenAICompatible(provider, apiKey, model, systemPrompt, messages);
+    case "grok":
+      if (options?.webSearch) {
+        return callResponsesAPIWithSearch(
+          provider,
+          apiKey,
+          model,
+          systemPrompt,
+          messages,
+        );
+      }
+      return callOpenAICompatible(provider, apiKey, model, systemPrompt, messages);
     case "openai":
+      if (options?.webSearch) {
+        return callResponsesAPIWithSearch(
+          provider,
+          apiKey,
+          model,
+          systemPrompt,
+          messages,
+        );
+      }
       return callOpenAICompatible(provider, apiKey, model, systemPrompt, messages);
     default:
       throw new Error(`Unknown AI provider: ${provider}`);

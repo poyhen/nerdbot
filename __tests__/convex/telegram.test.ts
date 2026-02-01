@@ -27,6 +27,29 @@ function mockFetchForAI(aiResponseText: string, inputTokens = 10, outputTokens =
         });
       }
 
+      // Responses API call (web search) — OpenAI and xAI
+      if (url.includes("/v1/responses")) {
+        return new Response(
+          JSON.stringify({
+            id: "resp_test",
+            output: [
+              {
+                type: "message",
+                content: [{ type: "output_text", text: aiResponseText }],
+              },
+            ],
+            usage: {
+              prompt_tokens: inputTokens,
+              completion_tokens: outputTokens,
+            },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+
       // Moonshot / OpenAI-compatible API call
       if (url.includes("chat/completions")) {
         return new Response(
@@ -353,6 +376,113 @@ describe("processMessage", () => {
     // Reply should include thread id
     const sendCall = calls.find((c) => c.url.includes("/sendMessage"));
     expect((sendCall?.body as Record<string, unknown>).message_thread_id).toBe(7);
+  });
+
+  it("works with grok provider", async () => {
+    const t = convexTest(schema, modules);
+    vi.stubEnv("AI_PROVIDER", "grok");
+    vi.stubEnv("AI_MODEL", "grok-4-1-fast");
+
+    await t.mutation(internal.messages.store, {
+      chatId: 100,
+      role: "user",
+      text: "Hello Grok",
+      userId: 1,
+      userName: "Alice",
+    });
+
+    const calls = mockFetchForAI("Hello from Grok!");
+
+    await t.action(internal.telegram.processMessage, {
+      chatId: 100,
+      userId: 1,
+      userName: "Alice",
+      messageText: "Hello Grok",
+      messageId: 1,
+    });
+
+    // Should have called xAI API
+    const aiCalls = calls.filter((c) => c.url.includes("api.x.ai"));
+    expect(aiCalls).toHaveLength(1);
+
+    // Should have stored the response
+    const messages = await t.query(internal.messages.getRecent, {
+      chatId: 100,
+    });
+    const assistantMessages = messages.filter((m) => m.role === "assistant");
+    expect(assistantMessages[0]!.text).toBe("Hello from Grok!");
+  });
+
+  it("works with grok provider and web search", async () => {
+    const t = convexTest(schema, modules);
+    vi.stubEnv("AI_PROVIDER", "grok");
+    vi.stubEnv("AI_MODEL", "grok-4-1-fast");
+    vi.stubEnv("WEB_SEARCH", "true");
+
+    await t.mutation(internal.messages.store, {
+      chatId: 100,
+      role: "user",
+      text: "Search something",
+      userId: 1,
+      userName: "Alice",
+    });
+
+    const calls = mockFetchForAI("Found via search!");
+
+    await t.action(internal.telegram.processMessage, {
+      chatId: 100,
+      userId: 1,
+      userName: "Alice",
+      messageText: "Search something",
+      messageId: 1,
+    });
+
+    // Should have called the Responses API
+    const aiCalls = calls.filter((c) => c.url.includes("api.x.ai/v1/responses"));
+    expect(aiCalls).toHaveLength(1);
+
+    // Should have stored the response
+    const messages = await t.query(internal.messages.getRecent, {
+      chatId: 100,
+    });
+    const assistantMessages = messages.filter((m) => m.role === "assistant");
+    expect(assistantMessages[0]!.text).toBe("Found via search!");
+  });
+
+  it("works with openai provider and web search", async () => {
+    const t = convexTest(schema, modules);
+    vi.stubEnv("AI_PROVIDER", "openai");
+    vi.stubEnv("AI_MODEL", "gpt-4o");
+    vi.stubEnv("WEB_SEARCH", "true");
+
+    await t.mutation(internal.messages.store, {
+      chatId: 100,
+      role: "user",
+      text: "Search something",
+      userId: 1,
+      userName: "Alice",
+    });
+
+    const calls = mockFetchForAI("Found via OpenAI search!");
+
+    await t.action(internal.telegram.processMessage, {
+      chatId: 100,
+      userId: 1,
+      userName: "Alice",
+      messageText: "Search something",
+      messageId: 1,
+    });
+
+    // Should have called the OpenAI Responses API
+    const aiCalls = calls.filter((c) => c.url.includes("api.openai.com/v1/responses"));
+    expect(aiCalls).toHaveLength(1);
+
+    // Should have stored the response
+    const messages = await t.query(internal.messages.getRecent, {
+      chatId: 100,
+    });
+    const assistantMessages = messages.filter((m) => m.role === "assistant");
+    expect(assistantMessages[0]!.text).toBe("Found via OpenAI search!");
   });
 
   it("works with claude provider", async () => {

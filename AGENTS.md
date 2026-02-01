@@ -1,6 +1,6 @@
 # Nerdbot
 
-Telegram AI bot running on Convex. Uses raw fetch for Telegram Bot API. Default AI provider is Moonshot (Kimi K2). Also supports Claude and OpenAI.
+Telegram AI bot running on Convex. Uses raw fetch for Telegram Bot API. Default AI provider is Moonshot (Kimi K2). Also supports Claude, OpenAI, and Grok.
 
 ## Tooling
 
@@ -20,17 +20,18 @@ convex/
   messages.ts        - Internal mutations/queries for message storage
   crons.ts           - Daily cron job to prune old messages
   lib/
-    ai.ts            - AI provider abstraction (Moonshot, Claude, OpenAI)
+    ai.ts            - AI provider abstraction (Moonshot, Claude, OpenAI, Grok)
     telegramApi.ts   - Telegram Bot API helpers (sendMessage, sendChatAction, setWebhook)
     env.ts           - Environment variable helper (requireEnv)
     helpers.ts       - Pure logic extracted for testability (rate limiting, trigger logic, etc.)
     logger.ts        - Structured wide-event logger (one JSON log line per request)
 __tests__/
-  env.test.ts        - Tests for requireEnv (bun:test)
-  ai.test.ts         - Tests for AI provider abstraction (bun:test)
-  telegramApi.test.ts - Tests for Telegram API helpers (bun:test)
-  helpers.test.ts    - Tests for rate limiting, trigger logic, command parsing, etc. (bun:test)
-  logger.test.ts     - Tests for structured logger (bun:test)
+  unit/
+    env.test.ts        - Tests for requireEnv (bun:test)
+    ai.test.ts         - Tests for AI provider abstraction (bun:test)
+    telegramApi.test.ts - Tests for Telegram API helpers (bun:test)
+    helpers.test.ts    - Tests for rate limiting, trigger logic, command parsing, etc. (bun:test)
+    logger.test.ts     - Tests for structured logger (bun:test)
   convex/
     test.setup.ts      - Vitest module glob for convex-test
     messages.test.ts   - Integration tests for message mutations/queries (vitest + convex-test)
@@ -50,10 +51,11 @@ __tests__/
 | `format`            | `bun run format`            | Format code with Prettier                                       |
 | `format:check`      | `bun run format:check`      | Check formatting without writing                                |
 | `test`              | `bun run test`              | Run all tests (unit + convex integration)                       |
-| `test:unit`         | `bun run test:unit`         | Run unit tests only (bun:test in **tests**/)                    |
+| `test:unit`         | `bun run test:unit`         | Run unit tests only (bun:test in **tests**/unit/)               |
 | `test:convex`       | `bun run test:convex`       | Run Convex integration tests only (vitest in **tests**/convex/) |
 | `test:convex:watch` | `bun run test:convex:watch` | Run Convex tests in watch mode                                  |
 | `typecheck`         | `bun run typecheck`         | Run TypeScript type checking                                    |
+| `check`             | `bun run check`             | Run lint + format check + typecheck (all static checks)         |
 
 ## Linting & Formatting
 
@@ -61,11 +63,11 @@ __tests__/
 - Prettier for formatting (semi, double quotes, trailing commas, 90 char width)
 - `no-explicit-any` is an error — no `any` in the codebase, use typed interfaces instead
 - `no-unsafe-*` rules are off (Convex generated types trigger false positives)
-- Always run `bun run lint` and `bun run format:check` before committing
+- Always run `bun run check` before committing
 
 ## Testing
 
-- **Unit tests** live in `__tests__/` at the project root, run with `bun run test:unit` (bun:test)
+- **Unit tests** live in `__tests__/unit/`, run with `bun run test:unit` (bun:test)
 - **Convex integration tests** live in `__tests__/convex/`, run with `bun run test:convex` (vitest + convex-test)
 - `bun run test` runs both test suites
 - Pure logic is extracted into `convex/lib/helpers.ts` so it can be unit tested without a Convex backend
@@ -78,20 +80,20 @@ __tests__/
 
 Set via `bunx convex env set <KEY> <VALUE>`:
 
-| Variable                  | Description                                                                                                                                  |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TELEGRAM_BOT_TOKEN`      | From BotFather                                                                                                                               |
-| `TELEGRAM_WEBHOOK_SECRET` | Random string for webhook validation                                                                                                         |
-| `AI_PROVIDER`             | `"moonshot"`, `"claude"`, or `"openai"` (default: `"moonshot"`)                                                                              |
-| `AI_API_KEY`              | API key for chosen provider                                                                                                                  |
-| `AI_MODEL`                | e.g. `"kimi-k2-0711-preview"`, `"claude-sonnet-4-20250514"`, `"gpt-4o"`                                                                      |
-| `BOT_USERNAME`            | `nerdbot` (without @)                                                                                                                        |
-| `RATE_LIMIT_PER_MINUTE`   | Max messages per user per group per minute (default: `10`)                                                                                   |
-| `ALLOWED_USER_IDS`        | Comma-separated Telegram user IDs allowed to use the bot. **Required** — bot blocks everyone if not set                                      |
-| `ALLOWED_GROUP_IDS`       | Comma-separated Telegram group/supergroup IDs the bot can operate in. **Required** for groups — private chats with allowed users always work |
-| `MAX_CONTEXT_MESSAGES`    | Number of recent messages sent to the AI as context (default: `30`)                                                                          |
-| `MAX_RETAINED_MESSAGES`   | Number of messages kept per topic in the database before cron prunes (default: `100`)                                                        |
-| `MOONSHOT_WEB_SEARCH`     | Set to `"true"` to enable Moonshot's built-in web search. Model decides when to search. (default: disabled)                                  |
+| Variable                  | Description                                                                                                                                                                            |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TELEGRAM_BOT_TOKEN`      | From BotFather                                                                                                                                                                         |
+| `TELEGRAM_WEBHOOK_SECRET` | Random string for webhook validation                                                                                                                                                   |
+| `AI_PROVIDER`             | `"moonshot"`, `"claude"`, `"openai"`, or `"grok"` (default: `"moonshot"`)                                                                                                              |
+| `AI_API_KEY`              | API key for chosen provider                                                                                                                                                            |
+| `AI_MODEL`                | e.g. `"kimi-k2-0711-preview"`, `"claude-sonnet-4-20250514"`, `"gpt-4o"`, `"grok-4-1-fast-reasoning"`                                                                                   |
+| `BOT_USERNAME`            | `nerdbot` (without @)                                                                                                                                                                  |
+| `RATE_LIMIT_PER_MINUTE`   | Max messages per user per group per minute (default: `10`)                                                                                                                             |
+| `ALLOWED_USER_IDS`        | Comma-separated Telegram user IDs allowed to use the bot. **Required** — bot blocks everyone if not set                                                                                |
+| `ALLOWED_GROUP_IDS`       | Comma-separated Telegram group/supergroup IDs the bot can operate in. **Required** for groups — private chats with allowed users always work                                           |
+| `MAX_CONTEXT_MESSAGES`    | Number of recent messages sent to the AI as context (default: `30`)                                                                                                                    |
+| `MAX_RETAINED_MESSAGES`   | Number of messages kept per topic in the database before cron prunes (default: `100`)                                                                                                  |
+| `WEB_SEARCH`              | Set to `"true"` to enable web search. Supported by Moonshot (client-side tool loop) and OpenAI/Grok (server-side via Responses API). Model decides when to search. (default: disabled) |
 
 ## Key Design Decisions
 

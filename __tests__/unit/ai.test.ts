@@ -232,6 +232,384 @@ describe("generateResponse", () => {
     });
   });
 
+  describe("grok provider", () => {
+    test("calls xAI API URL", async () => {
+      const fetchMock = mockFetch({
+        choices: [{ message: { content: "Hello from Grok" } }],
+        usage: { prompt_tokens: 10, completion_tokens: 5 },
+      });
+
+      await generateResponse("grok", "xai-test-key", "grok-4-1-fast", "prompt", [
+        { role: "user", content: "Hi" },
+      ]);
+
+      const [url] = getCallArgs(fetchMock);
+      expect(url).toBe("https://api.x.ai/v1/chat/completions");
+    });
+
+    test("sends Bearer auth header", async () => {
+      const fetchMock = mockFetch({
+        choices: [{ message: { content: "response" } }],
+        usage: {},
+      });
+
+      await generateResponse("grok", "xai-test-key", "model", "prompt", [
+        { role: "user", content: "Hi" },
+      ]);
+
+      const [, options] = getCallArgs(fetchMock);
+      const headers = options.headers as Record<string, string>;
+      expect(headers.Authorization).toBe("Bearer xai-test-key");
+    });
+
+    test("includes system message in messages array", async () => {
+      const fetchMock = mockFetch({
+        choices: [{ message: { content: "response" } }],
+        usage: {},
+      });
+
+      await generateResponse("grok", "key", "model", "Be nerdbot", [
+        { role: "user", content: "Hello" },
+      ]);
+
+      const body = getCallBody(fetchMock);
+      expect(body.messages[0]).toEqual({ role: "system", content: "Be nerdbot" });
+      expect(body.messages[1]).toEqual({ role: "user", content: "Hello" });
+    });
+
+    test("returns parsed OpenAI-format response", async () => {
+      mockFetch({
+        choices: [{ message: { content: "Grok says hi" } }],
+        usage: { prompt_tokens: 20, completion_tokens: 8 },
+      });
+
+      const result = await generateResponse("grok", "key", "model", "prompt", [
+        { role: "user", content: "Hi" },
+      ]);
+
+      expect(result.text).toBe("Grok says hi");
+      expect(result.inputTokens).toBe(20);
+      expect(result.outputTokens).toBe(8);
+    });
+
+    test("throws on API error with provider name", async () => {
+      mockFetch({ error: "bad request" }, false, 400);
+
+      expect(
+        generateResponse("grok", "key", "model", "prompt", [
+          { role: "user", content: "Hi" },
+        ]),
+      ).rejects.toThrow("grok API error: 400");
+    });
+  });
+
+  describe("grok web search", () => {
+    test("calls Responses API endpoint when webSearch is enabled", async () => {
+      const fetchMock = mockFetch({
+        id: "resp_123",
+        output: [
+          {
+            type: "message",
+            content: [{ type: "output_text", text: "Search result" }],
+          },
+        ],
+        usage: { prompt_tokens: 10, completion_tokens: 5 },
+      });
+
+      await generateResponse(
+        "grok",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "search this" }],
+        { webSearch: true },
+      );
+
+      const [url] = getCallArgs(fetchMock);
+      expect(url).toBe("https://api.x.ai/v1/responses");
+    });
+
+    test("sends correct request body with tools and store:false", async () => {
+      const fetchMock = mockFetch({
+        id: "resp_123",
+        output: [
+          {
+            type: "message",
+            content: [{ type: "output_text", text: "Answer" }],
+          },
+        ],
+        usage: {},
+      });
+
+      await generateResponse(
+        "grok",
+        "key",
+        "grok-4-1-fast",
+        "Be helpful",
+        [{ role: "user", content: "What is X?" }],
+        { webSearch: true },
+      );
+
+      const body = getCallBody(fetchMock);
+      expect(body.model).toBe("grok-4-1-fast");
+      expect(body.tools).toEqual([{ type: "web_search" }]);
+      expect(body.store).toBe(false);
+      expect(body.input[0]).toEqual({ role: "system", content: "Be helpful" });
+      expect(body.input[1]).toEqual({ role: "user", content: "What is X?" });
+    });
+
+    test("extracts text from message output", async () => {
+      mockFetch({
+        id: "resp_123",
+        output: [
+          {
+            type: "message",
+            content: [{ type: "output_text", text: "The answer is 42" }],
+          },
+        ],
+        usage: { prompt_tokens: 15, completion_tokens: 8 },
+      });
+
+      const result = await generateResponse(
+        "grok",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "question" }],
+        { webSearch: true },
+      );
+
+      expect(result.text).toBe("The answer is 42");
+      expect(result.inputTokens).toBe(15);
+      expect(result.outputTokens).toBe(8);
+    });
+
+    test("handles response with web_search_call outputs", async () => {
+      mockFetch({
+        id: "resp_123",
+        output: [
+          { type: "web_search_call" },
+          {
+            type: "message",
+            content: [{ type: "output_text", text: "Found via search" }],
+          },
+        ],
+        usage: { prompt_tokens: 20, completion_tokens: 10 },
+      });
+
+      const result = await generateResponse(
+        "grok",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "search" }],
+        { webSearch: true },
+      );
+
+      expect(result.text).toBe("Found via search");
+      expect(result.webSearchQueries).toBeDefined();
+      expect(result.webSearchQueries).toHaveLength(1);
+    });
+
+    test("returns no webSearchQueries when no search was performed", async () => {
+      mockFetch({
+        id: "resp_123",
+        output: [
+          {
+            type: "message",
+            content: [{ type: "output_text", text: "Direct answer" }],
+          },
+        ],
+        usage: {},
+      });
+
+      const result = await generateResponse(
+        "grok",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "hi" }],
+        { webSearch: true },
+      );
+
+      expect(result.text).toBe("Direct answer");
+      expect(result.webSearchQueries).toBeUndefined();
+    });
+
+    test("throws on API error", async () => {
+      mockFetch({ error: "rate limited" }, false, 429);
+
+      await expect(
+        generateResponse(
+          "grok",
+          "key",
+          "model",
+          "prompt",
+          [{ role: "user", content: "search" }],
+          { webSearch: true },
+        ),
+      ).rejects.toThrow("grok API error: 429");
+    });
+
+    test("returns empty string when output has no message", async () => {
+      mockFetch({
+        id: "resp_123",
+        output: [{ type: "web_search_call" }],
+        usage: {},
+      });
+
+      const result = await generateResponse(
+        "grok",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "search" }],
+        { webSearch: true },
+      );
+
+      expect(result.text).toBe("");
+    });
+
+    test("uses chat completions when webSearch is false", async () => {
+      const fetchMock = mockFetch({
+        choices: [{ message: { content: "no search" } }],
+        usage: {},
+      });
+
+      await generateResponse(
+        "grok",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "Hi" }],
+        { webSearch: false },
+      );
+
+      const [url] = getCallArgs(fetchMock);
+      expect(url).toBe("https://api.x.ai/v1/chat/completions");
+      const body = getCallBody(fetchMock);
+      expect(body.tools).toBeUndefined();
+    });
+  });
+
+  describe("openai web search", () => {
+    test("calls Responses API endpoint when webSearch is enabled", async () => {
+      const fetchMock = mockFetch({
+        id: "resp_456",
+        output: [
+          {
+            type: "message",
+            content: [{ type: "output_text", text: "OpenAI search result" }],
+          },
+        ],
+        usage: { prompt_tokens: 10, completion_tokens: 5 },
+      });
+
+      await generateResponse(
+        "openai",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "search this" }],
+        { webSearch: true },
+      );
+
+      const [url] = getCallArgs(fetchMock);
+      expect(url).toBe("https://api.openai.com/v1/responses");
+    });
+
+    test("sends correct request body with tools and store:false", async () => {
+      const fetchMock = mockFetch({
+        id: "resp_456",
+        output: [
+          {
+            type: "message",
+            content: [{ type: "output_text", text: "Answer" }],
+          },
+        ],
+        usage: {},
+      });
+
+      await generateResponse(
+        "openai",
+        "key",
+        "gpt-4o",
+        "Be helpful",
+        [{ role: "user", content: "What is X?" }],
+        { webSearch: true },
+      );
+
+      const body = getCallBody(fetchMock);
+      expect(body.model).toBe("gpt-4o");
+      expect(body.tools).toEqual([{ type: "web_search" }]);
+      expect(body.store).toBe(false);
+      expect(body.input[0]).toEqual({ role: "system", content: "Be helpful" });
+      expect(body.input[1]).toEqual({ role: "user", content: "What is X?" });
+    });
+
+    test("extracts text from message output", async () => {
+      mockFetch({
+        id: "resp_456",
+        output: [
+          {
+            type: "message",
+            content: [{ type: "output_text", text: "The answer is 42" }],
+          },
+        ],
+        usage: { prompt_tokens: 15, completion_tokens: 8 },
+      });
+
+      const result = await generateResponse(
+        "openai",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "question" }],
+        { webSearch: true },
+      );
+
+      expect(result.text).toBe("The answer is 42");
+      expect(result.inputTokens).toBe(15);
+      expect(result.outputTokens).toBe(8);
+    });
+
+    test("throws on API error", async () => {
+      mockFetch({ error: "rate limited" }, false, 429);
+
+      await expect(
+        generateResponse(
+          "openai",
+          "key",
+          "model",
+          "prompt",
+          [{ role: "user", content: "search" }],
+          { webSearch: true },
+        ),
+      ).rejects.toThrow("openai API error: 429");
+    });
+
+    test("uses chat completions when webSearch is false", async () => {
+      const fetchMock = mockFetch({
+        choices: [{ message: { content: "no search" } }],
+        usage: {},
+      });
+
+      await generateResponse(
+        "openai",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "Hi" }],
+        { webSearch: false },
+      );
+
+      const [url] = getCallArgs(fetchMock);
+      expect(url).toBe("https://api.openai.com/v1/chat/completions");
+      const body = getCallBody(fetchMock);
+      expect(body.tools).toBeUndefined();
+    });
+  });
+
   describe("moonshot web search", () => {
     test("includes tools array when webSearch is enabled", async () => {
       const fetchMock = mockFetch({
@@ -596,10 +974,16 @@ describe("generateResponse", () => {
       expect(body.tools).toBeUndefined();
     });
 
-    test("openai provider ignores webSearch option", async () => {
+    test("openai provider uses Responses API when webSearch is enabled", async () => {
       const fetchMock = mockFetch({
-        choices: [{ message: { content: "response" } }],
-        usage: {},
+        id: "resp_123",
+        output: [
+          {
+            type: "message",
+            content: [{ type: "output_text", text: "Searched result" }],
+          },
+        ],
+        usage: { prompt_tokens: 10, completion_tokens: 5 },
       });
 
       await generateResponse(
@@ -611,8 +995,8 @@ describe("generateResponse", () => {
         { webSearch: true },
       );
 
-      const body = getCallBody(fetchMock);
-      expect(body.tools).toBeUndefined();
+      const [url] = getCallArgs(fetchMock);
+      expect(url).toBe("https://api.openai.com/v1/responses");
     });
 
     test("handles unexpected finish_reason gracefully", async () => {

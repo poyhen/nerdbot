@@ -1,6 +1,6 @@
 # Nerdbot
 
-Telegram AI bot running on Convex. Uses raw fetch for Telegram Bot API. Default AI provider is Moonshot (Kimi K2). Also supports Claude and OpenAI.
+Telegram AI bot running on Convex. Uses raw fetch for Telegram Bot API. Default AI provider is Moonshot (Kimi K2). Also supports Claude, OpenAI, and Grok.
 
 ## Tooling
 
@@ -20,7 +20,7 @@ convex/
   messages.ts        - Internal mutations/queries for message storage
   crons.ts           - Daily cron job to prune old messages
   lib/
-    ai.ts            - AI provider abstraction (Moonshot, Claude, OpenAI)
+    ai.ts            - AI provider abstraction (Moonshot, Claude, OpenAI, Grok)
     telegramApi.ts   - Telegram Bot API helpers (sendMessage, sendChatAction, setWebhook)
     env.ts           - Environment variable helper (requireEnv)
     helpers.ts       - Pure logic extracted for testability (rate limiting, trigger logic, etc.)
@@ -41,21 +41,21 @@ __tests__/
 
 ## Scripts
 
-| Script | Command | Description |
-|--------|---------|-------------|
-| `dev` | `bun run dev` | Start Convex dev server with hot reload |
-| `deploy` | `bun run deploy` | Deploy to production |
-| `register-webhook` | `bun run register-webhook` | Register webhook URL with Telegram |
-| `lint` | `bun run lint` | Run ESLint on convex/ and __tests__/ |
-| `lint:fix` | `bun run lint:fix` | Auto-fix lint issues |
-| `format` | `bun run format` | Format code with Prettier |
-| `format:check` | `bun run format:check` | Check formatting without writing |
-| `test` | `bun run test` | Run all tests (unit + convex integration) |
-| `test:unit` | `bun run test:unit` | Run unit tests only (bun:test in __tests__/unit/) |
-| `test:convex` | `bun run test:convex` | Run Convex integration tests only (vitest in __tests__/convex/) |
-| `test:convex:watch` | `bun run test:convex:watch` | Run Convex tests in watch mode |
-| `typecheck` | `bun run typecheck` | Run TypeScript type checking |
-| `check` | `bun run check` | Run lint + format check + typecheck (all static checks) |
+| Script              | Command                     | Description                                                     |
+| ------------------- | --------------------------- | --------------------------------------------------------------- |
+| `dev`               | `bun run dev`               | Start Convex dev server with hot reload                         |
+| `deploy`            | `bun run deploy`            | Deploy to production                                            |
+| `register-webhook`  | `bun run register-webhook`  | Register webhook URL with Telegram                              |
+| `lint`              | `bun run lint`              | Run ESLint on convex/ and **tests**/                            |
+| `lint:fix`          | `bun run lint:fix`          | Auto-fix lint issues                                            |
+| `format`            | `bun run format`            | Format code with Prettier                                       |
+| `format:check`      | `bun run format:check`      | Check formatting without writing                                |
+| `test`              | `bun run test`              | Run all tests (unit + convex integration)                       |
+| `test:unit`         | `bun run test:unit`         | Run unit tests only (bun:test in **tests**/unit/)               |
+| `test:convex`       | `bun run test:convex`       | Run Convex integration tests only (vitest in **tests**/convex/) |
+| `test:convex:watch` | `bun run test:convex:watch` | Run Convex tests in watch mode                                  |
+| `typecheck`         | `bun run typecheck`         | Run TypeScript type checking                                    |
+| `check`             | `bun run check`             | Run lint + format check + typecheck (all static checks)         |
 
 ## Linting & Formatting
 
@@ -80,20 +80,20 @@ __tests__/
 
 Set via `bunx convex env set <KEY> <VALUE>`:
 
-| Variable | Description |
-|----------|-------------|
-| `TELEGRAM_BOT_TOKEN` | From BotFather |
-| `TELEGRAM_WEBHOOK_SECRET` | Random string for webhook validation |
-| `AI_PROVIDER` | `"moonshot"`, `"claude"`, or `"openai"` (default: `"moonshot"`) |
-| `AI_API_KEY` | API key for chosen provider |
-| `AI_MODEL` | e.g. `"kimi-k2-0711-preview"`, `"claude-sonnet-4-20250514"`, `"gpt-4o"` |
-| `BOT_USERNAME` | `nerdbot` (without @) |
-| `RATE_LIMIT_PER_MINUTE` | Max messages per user per group per minute (default: `10`) |
-| `ALLOWED_USER_IDS` | Comma-separated Telegram user IDs allowed to use the bot. **Required** — bot blocks everyone if not set |
-| `ALLOWED_GROUP_IDS` | Comma-separated Telegram group/supergroup IDs the bot can operate in. **Required** for groups — private chats with allowed users always work |
-| `MAX_CONTEXT_MESSAGES` | Number of recent messages sent to the AI as context (default: `30`) |
-| `MAX_RETAINED_MESSAGES` | Number of messages kept per topic in the database before cron prunes (default: `100`) |
-| `MOONSHOT_WEB_SEARCH` | Set to `"true"` to enable Moonshot's built-in web search. Model decides when to search. (default: disabled) |
+| Variable                  | Description                                                                                                                                                                            |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TELEGRAM_BOT_TOKEN`      | From BotFather                                                                                                                                                                         |
+| `TELEGRAM_WEBHOOK_SECRET` | Random string for webhook validation                                                                                                                                                   |
+| `AI_PROVIDER`             | `"moonshot"`, `"claude"`, `"openai"`, or `"grok"` (default: `"moonshot"`)                                                                                                              |
+| `AI_API_KEY`              | API key for chosen provider                                                                                                                                                            |
+| `AI_MODEL`                | e.g. `"kimi-k2-0711-preview"`, `"claude-sonnet-4-20250514"`, `"gpt-4o"`, `"grok-4-1-fast-reasoning"`                                                                                   |
+| `BOT_USERNAME`            | `nerdbot` (without @)                                                                                                                                                                  |
+| `RATE_LIMIT_PER_MINUTE`   | Max messages per user per group per minute (default: `10`)                                                                                                                             |
+| `ALLOWED_USER_IDS`        | Comma-separated Telegram user IDs allowed to use the bot. **Required** — bot blocks everyone if not set                                                                                |
+| `ALLOWED_GROUP_IDS`       | Comma-separated Telegram group/supergroup IDs the bot can operate in. **Required** for groups — private chats with allowed users always work                                           |
+| `MAX_CONTEXT_MESSAGES`    | Number of recent messages sent to the AI as context (default: `30`)                                                                                                                    |
+| `MAX_RETAINED_MESSAGES`   | Number of messages kept per topic in the database before cron prunes (default: `100`)                                                                                                  |
+| `WEB_SEARCH`              | Set to `"true"` to enable web search. Supported by Moonshot (client-side tool loop) and OpenAI/Grok (server-side via Responses API). Model decides when to search. (default: disabled) |
 
 ## Key Design Decisions
 
@@ -107,14 +107,15 @@ Set via `bunx convex env set <KEY> <VALUE>`:
 
 ## Bot Commands
 
-| Command | Description |
-|---------|-------------|
-| `/help` | Show help message |
+| Command  | Description                             |
+| -------- | --------------------------------------- |
+| `/help`  | Show help message                       |
 | `/reset` | Clear conversation history for the chat |
 
 ## Bot Trigger Conditions
 
 In groups, the bot responds when:
+
 - Mentioned with `@nerdbot`
 - Message is a `/` command
 

@@ -1,6 +1,6 @@
 # Nerdbot
 
-A Telegram AI chatbot powered by Convex. Default AI provider is Moonshot (Kimi K2). Also supports Claude and OpenAI. Works in group chats and private messages.
+A Telegram AI chatbot powered by Convex. Default AI provider is Moonshot (Kimi K2). Also supports Claude, OpenAI, and Grok. Works in group chats and private messages.
 
 ## Setup
 
@@ -8,7 +8,7 @@ A Telegram AI chatbot powered by Convex. Default AI provider is Moonshot (Kimi K
 
 - [Bun](https://bun.sh)
 - A Telegram bot token from [@BotFather](https://t.me/BotFather)
-- A [Moonshot](https://platform.moonshot.ai/) API key (or Claude/OpenAI)
+- A [Moonshot](https://platform.moonshot.ai/) API key (or Claude/OpenAI/[xAI Grok](https://console.x.ai/))
 
 ### Install
 
@@ -41,7 +41,7 @@ Optional settings (have sensible defaults):
 bunx convex env set RATE_LIMIT_PER_MINUTE "10"
 bunx convex env set MAX_CONTEXT_MESSAGES "30"
 bunx convex env set MAX_RETAINED_MESSAGES "100"
-bunx convex env set MOONSHOT_WEB_SEARCH "true"
+bunx convex env set WEB_SEARCH "true"
 ```
 
 ### Register Webhook
@@ -97,5 +97,5 @@ bunx convex deploy
 - `/reset` clears conversation history for the current chat.
 - Messages older than the latest 100 per topic are automatically pruned daily (configurable via `MAX_RETAINED_MESSAGES`).
 - Only whitelisted users and groups can interact with the bot — check Convex logs for blocked user/group IDs.
-- **Web search**: When `MOONSHOT_WEB_SEARCH` is enabled, the model can autonomously search the web to answer questions about current events or look up information.
+- **Web search**: When `WEB_SEARCH` is enabled, the model can autonomously search the web to answer questions about current events or look up information. Supported by Moonshot, OpenAI, and Grok.
 - **Structured logging**: All logs are emitted as single JSON lines per request (wide events). Check the Convex dashboard for structured logs with fields like `event`, `chatId`, `userId`, `provider`, `inputTokens`, etc.
