@@ -167,6 +167,18 @@ http.route({
         log.set("action", "issue_scheduled").info();
         return new Response("OK", { status: 200 });
       }
+
+      // Unrecognized command — store for context but don't trigger AI
+      await ctx.runMutation(internal.messages.store, {
+        chatId,
+        messageThreadId,
+        userId,
+        userName,
+        role: "user" as const,
+        text: replyContext + messageText,
+        telegramMessageId: messageId,
+      });
+      return new Response("OK", { status: 200 });
     }
 
     // 5. Rate limit check
