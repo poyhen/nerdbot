@@ -1,5 +1,5 @@
 import { test, expect, describe, afterEach, mock } from "bun:test";
-import { generateResponse } from "../convex/lib/ai";
+import { generateResponse } from "../../convex/lib/ai";
 
 const originalFetch = globalThis.fetch;
 

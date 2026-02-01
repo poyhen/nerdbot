@@ -1,5 +1,5 @@
 import { test, expect, describe, afterEach, mock } from "bun:test";
-import { sendMessage, sendChatAction, setWebhook } from "../convex/lib/telegramApi";
+import { sendMessage, sendChatAction, setWebhook } from "../../convex/lib/telegramApi";
 
 const originalFetch = globalThis.fetch;
 

@@ -68,10 +68,21 @@ bunx convex dev
 ## Testing
 
 ```bash
-bun test
+bun run test          # run all tests (unit + convex integration)
+bun run test:unit     # unit tests only (bun:test)
+bun run test:convex   # convex integration tests only (vitest + convex-test)
 ```
 
-Tests are in `tests/` and cover rate limiting, bot trigger logic, command parsing, mention stripping, response truncation, conversation formatting, AI providers, Telegram API calls, and structured logging.
+Tests are in `__tests__/`:
+
+- **`__tests__/unit/`** — Unit tests for pure helpers, AI providers, Telegram API, env, and structured logging (bun:test)
+- **`__tests__/convex/`** — Integration tests for Convex functions: message CRUD, webhook routing, rate limiting, and AI processing pipeline (vitest + [convex-test](https://www.npmjs.com/package/convex-test))
+
+## Static Checks
+
+```bash
+bun run check         # lint + format check + typecheck
+```
 
 ## Deploy
 

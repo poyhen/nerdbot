@@ -1,5 +1,5 @@
 import { test, expect, describe, afterEach } from "bun:test";
-import { Logger, createLogger } from "../convex/lib/logger";
+import { Logger, createLogger } from "../../convex/lib/logger";
 
 const originalLog = console.log;
 const originalWarn = console.warn;

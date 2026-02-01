@@ -9,7 +9,7 @@ import {
   truncateResponse,
   formatConversation,
   evaluateRateLimit,
-} from "../convex/lib/helpers";
+} from "../../convex/lib/helpers";
 
 describe("shouldRespond", () => {
   test("always responds in private chat", () => {

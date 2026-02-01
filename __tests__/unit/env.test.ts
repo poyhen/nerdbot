@@ -1,5 +1,5 @@
 import { test, expect, afterEach } from "bun:test";
-import { requireEnv } from "../convex/lib/env";
+import { requireEnv } from "../../convex/lib/env";
 
 afterEach(() => {
   delete process.env.TEST_ENV_VAR;

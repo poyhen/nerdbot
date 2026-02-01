@@ -25,12 +25,18 @@ convex/
     env.ts           - Environment variable helper (requireEnv)
     helpers.ts       - Pure logic extracted for testability (rate limiting, trigger logic, etc.)
     logger.ts        - Structured wide-event logger (one JSON log line per request)
-tests/
-  env.test.ts        - Tests for requireEnv
-  ai.test.ts         - Tests for AI provider abstraction
-  telegramApi.test.ts - Tests for Telegram API helpers
-  helpers.test.ts    - Tests for rate limiting, trigger logic, command parsing, etc.
-  logger.test.ts     - Tests for structured logger
+__tests__/
+  unit/
+    env.test.ts        - Tests for requireEnv (bun:test)
+    ai.test.ts         - Tests for AI provider abstraction (bun:test)
+    telegramApi.test.ts - Tests for Telegram API helpers (bun:test)
+    helpers.test.ts    - Tests for rate limiting, trigger logic, command parsing, etc. (bun:test)
+    logger.test.ts     - Tests for structured logger (bun:test)
+  convex/
+    test.setup.ts      - Vitest module glob for convex-test
+    messages.test.ts   - Integration tests for message mutations/queries (vitest + convex-test)
+    http.test.ts       - Integration tests for webhook HTTP handler (vitest + convex-test)
+    telegram.test.ts   - Integration tests for processMessage action (vitest + convex-test)
 ```
 
 ## Scripts
@@ -40,12 +46,16 @@ tests/
 | `dev` | `bun run dev` | Start Convex dev server with hot reload |
 | `deploy` | `bun run deploy` | Deploy to production |
 | `register-webhook` | `bun run register-webhook` | Register webhook URL with Telegram |
-| `lint` | `bun run lint` | Run ESLint on convex/ and tests/ |
+| `lint` | `bun run lint` | Run ESLint on convex/ and __tests__/ |
 | `lint:fix` | `bun run lint:fix` | Auto-fix lint issues |
 | `format` | `bun run format` | Format code with Prettier |
 | `format:check` | `bun run format:check` | Check formatting without writing |
-| `test` | `bun test` | Run all unit tests |
+| `test` | `bun run test` | Run all tests (unit + convex integration) |
+| `test:unit` | `bun run test:unit` | Run unit tests only (bun:test in __tests__/unit/) |
+| `test:convex` | `bun run test:convex` | Run Convex integration tests only (vitest in __tests__/convex/) |
+| `test:convex:watch` | `bun run test:convex:watch` | Run Convex tests in watch mode |
 | `typecheck` | `bun run typecheck` | Run TypeScript type checking |
+| `check` | `bun run check` | Run lint + format check + typecheck (all static checks) |
 
 ## Linting & Formatting
 
@@ -53,15 +63,18 @@ tests/
 - Prettier for formatting (semi, double quotes, trailing commas, 90 char width)
 - `no-explicit-any` is an error — no `any` in the codebase, use typed interfaces instead
 - `no-unsafe-*` rules are off (Convex generated types trigger false positives)
-- Always run `bun run lint` and `bun run format:check` before committing
+- Always run `bun run check` before committing
 
 ## Testing
 
-- Tests live in `tests/` at the project root, run with `bun test`
+- **Unit tests** live in `__tests__/unit/`, run with `bun run test:unit` (bun:test)
+- **Convex integration tests** live in `__tests__/convex/`, run with `bun run test:convex` (vitest + convex-test)
+- `bun run test` runs both test suites
 - Pure logic is extracted into `convex/lib/helpers.ts` so it can be unit tested without a Convex backend
-- Test files import source via relative paths (e.g. `../convex/lib/ai`)
-- Tests mock `globalThis.fetch` for HTTP-dependent code (AI providers, Telegram API)
-- Key areas covered: rate limiting, bot trigger logic, command parsing, mention stripping, response truncation, conversation formatting, all AI providers, Telegram API calls, env helpers
+- Unit test files import source via relative paths (e.g. `../../convex/lib/ai`)
+- Unit tests mock `globalThis.fetch` for HTTP-dependent code (AI providers, Telegram API)
+- Convex tests use `convex-test` for in-memory DB, `t.fetch()` for HTTP actions, and `vi.stubGlobal("fetch", ...)` for external API calls
+- Key areas covered: rate limiting, bot trigger logic, command parsing, mention stripping, response truncation, conversation formatting, all AI providers, Telegram API calls, env helpers, message CRUD, webhook routing, AI processing pipeline
 
 ## Environment Variables
 

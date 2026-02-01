@@ -51,6 +51,7 @@ export default defineConfig([
       "@typescript-eslint/await-thenable": "off",
       "@typescript-eslint/no-confusing-void-expression": "off",
       "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-non-null-assertion": "off",
     },
   },
   {
