@@ -5,6 +5,7 @@ import { evaluateRateLimit } from "./lib/helpers";
 export const store = internalMutation({
   args: {
     chatId: v.number(),
+    messageThreadId: v.optional(v.number()),
     userId: v.optional(v.number()),
     userName: v.optional(v.string()),
     role: v.union(v.literal("user"), v.literal("assistant")),
@@ -22,13 +23,16 @@ export const store = internalMutation({
 export const getRecent = internalQuery({
   args: {
     chatId: v.number(),
+    messageThreadId: v.optional(v.number()),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const limit = args.limit ?? 30;
     const messages = await ctx.db
       .query("messages")
-      .withIndex("by_chat", (q) => q.eq("chatId", args.chatId))
+      .withIndex("by_chat", (q) =>
+        q.eq("chatId", args.chatId).eq("messageThreadId", args.messageThreadId),
+      )
       .order("desc")
       .take(limit);
 
@@ -112,11 +116,16 @@ export const checkRateLimit = internalMutation({
 });
 
 export const clearChat = internalMutation({
-  args: { chatId: v.number() },
+  args: {
+    chatId: v.number(),
+    messageThreadId: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     const messages = await ctx.db
       .query("messages")
-      .withIndex("by_chat", (q) => q.eq("chatId", args.chatId))
+      .withIndex("by_chat", (q) =>
+        q.eq("chatId", args.chatId).eq("messageThreadId", args.messageThreadId),
+      )
       .collect();
 
     for (const msg of messages) {
@@ -125,24 +134,29 @@ export const clearChat = internalMutation({
   },
 });
 
-// Delete old messages across all chats, keeping the latest 100 per chat.
+// Delete old messages across all chats, keeping the latest 100 per topic per chat.
 export const deleteOldMessages = internalMutation({
   args: {},
   handler: async (ctx) => {
-    // Get all distinct chats that have messages
-    const chats = await ctx.db.query("chats").collect();
+    const allMessages = await ctx.db.query("messages").collect();
+
+    // Group messages by chatId + messageThreadId
+    const groups = new Map<string, typeof allMessages>();
+    for (const msg of allMessages) {
+      const key = `${msg.chatId}:${String(msg.messageThreadId ?? "none")}`;
+      const group = groups.get(key);
+      if (group) {
+        group.push(msg);
+      } else {
+        groups.set(key, [msg]);
+      }
+    }
 
     let totalDeleted = 0;
-    for (const chat of chats) {
-      // Get messages beyond the 100 most recent
-      const oldMessages = await ctx.db
-        .query("messages")
-        .withIndex("by_chat", (q) => q.eq("chatId", chat.chatId))
-        .order("desc")
-        .collect();
-
-      // Skip the first 100 (newest), delete the rest
-      const toDelete = oldMessages.slice(100);
+    for (const msgs of groups.values()) {
+      // Sort newest first, keep 100, delete the rest
+      msgs.sort((a, b) => b.timestamp - a.timestamp);
+      const toDelete = msgs.slice(100);
       for (const msg of toDelete) {
         await ctx.db.delete("messages", msg._id);
       }

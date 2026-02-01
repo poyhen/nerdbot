@@ -4,6 +4,7 @@ import { v } from "convex/values";
 export default defineSchema({
   messages: defineTable({
     chatId: v.number(),
+    messageThreadId: v.optional(v.number()),
     userId: v.optional(v.number()),
     userName: v.optional(v.string()),
     role: v.union(v.literal("user"), v.literal("assistant")),
@@ -11,8 +12,8 @@ export default defineSchema({
     telegramMessageId: v.optional(v.number()),
     timestamp: v.number(),
   })
-    .index("by_chat", ["chatId", "timestamp"])
-    .index("by_chat_recent", ["chatId"]),
+    .index("by_chat", ["chatId", "messageThreadId", "timestamp"])
+    .index("by_chat_recent", ["chatId", "messageThreadId"]),
 
   chats: defineTable({
     chatId: v.number(),

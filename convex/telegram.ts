@@ -42,6 +42,7 @@ export const processMessage = internalAction({
 
       const recentMessages = await ctx.runQuery(internal.messages.getRecent, {
         chatId: args.chatId,
+        messageThreadId: args.messageThreadId,
         limit: maxContext,
       });
 
@@ -59,6 +60,7 @@ export const processMessage = internalAction({
 
       await ctx.runMutation(internal.messages.store, {
         chatId: args.chatId,
+        messageThreadId: args.messageThreadId,
         role: "assistant",
         text: responseText,
       });

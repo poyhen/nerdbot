@@ -543,9 +543,7 @@ export const processMessage = internalAction({
       const conversation: ConversationMessage[] = recentMessages.map((msg) => ({
         role: msg.role,
         content:
-          msg.role === "user"
-            ? `[${msg.userName ?? "Unknown"}]: ${msg.text}`
-            : msg.text,
+          msg.role === "user" ? `[${msg.userName ?? "Unknown"}]: ${msg.text}` : msg.text,
       }));
 
       // Call AI
@@ -612,12 +610,7 @@ export const registerWebhook = action({
 Update `convex/messages.ts` to export internal versions:
 
 ```typescript
-import {
-  mutation,
-  query,
-  internalMutation,
-  internalQuery,
-} from "./_generated/server";
+import { mutation, query, internalMutation, internalQuery } from "./_generated/server";
 
 // Change the exports used by telegram.ts to internal:
 export const store = internalMutation({
@@ -692,12 +685,10 @@ http.route({
     //    - The message starts with a / command
     const isPrivateChat = message.chat.type === "private";
     const isMentioned = messageText.includes(`@${botUsername}`);
-    const isReplyToBot =
-      message.reply_to_message?.from?.username === botUsername;
+    const isReplyToBot = message.reply_to_message?.from?.username === botUsername;
     const isCommand = messageText.startsWith("/");
 
-    const shouldRespond =
-      isPrivateChat || isMentioned || isReplyToBot || isCommand;
+    const shouldRespond = isPrivateChat || isMentioned || isReplyToBot || isCommand;
 
     if (!shouldRespond) {
       // Still store the message for context, but don't respond
@@ -746,7 +737,7 @@ http.route({
       await sendMessage(
         process.env.TELEGRAM_BOT_TOKEN!,
         chatId,
-        "You're sending messages too fast. Please wait a moment.",
+        "Don't be rarted and spam, calm down! 🤨",
         { replyToMessageId: messageId },
       );
       return new Response("OK", { status: 200 });
@@ -960,11 +951,7 @@ Let group admins customize the bot's personality:
 if (command === "/setprompt") {
   const newPrompt = messageText.replace(/^\/setprompt(@\w+)?\s*/, "");
   if (!newPrompt) {
-    await sendMessage(
-      token,
-      chatId,
-      "Usage: /setprompt Your custom prompt here",
-    );
+    await sendMessage(token, chatId, "Usage: /setprompt Your custom prompt here");
     return new Response("OK", { status: 200 });
   }
   // Update the chat's system prompt

@@ -73,13 +73,14 @@ Set via `bunx convex env set <KEY> <VALUE>`:
 | `AI_API_KEY` | API key for chosen provider |
 | `AI_MODEL` | e.g. `"kimi-k2-0711-preview"`, `"claude-sonnet-4-20250514"`, `"gpt-4o"` |
 | `BOT_USERNAME` | `nerdbot` (without @) |
+| `RATE_LIMIT_PER_MINUTE` | Max messages per user per group per minute (default: `10`) |
 
 ## Key Design Decisions
 
 - **Async processing**: Webhook returns 200 immediately, AI work is scheduled via `ctx.scheduler.runAfter(0, ...)`. Prevents Telegram retry storms.
 - **All messages stored**: Even messages the bot doesn't respond to are stored for conversation context.
 - **Internal functions**: All mutations/queries called by the bot are internal (not exposed publicly).
-- **Rate limiting**: Per-user, per-group, 10 requests/minute sliding window.
+- **Rate limiting**: Per-user, per-group sliding window. Configurable via `RATE_LIMIT_PER_MINUTE` (default: 10).
 - **Forum/topic support**: Bot replies in the same thread it received a message from via `message_thread_id`.
 - **Message cleanup**: Daily cron keeps only the latest 100 messages per chat, deletes the rest.
 

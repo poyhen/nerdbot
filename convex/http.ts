@@ -58,6 +58,7 @@ http.route({
       // Store message for context but don't respond
       await ctx.runMutation(internal.messages.store, {
         chatId,
+        messageThreadId,
         userId,
         userName,
         role: "user" as const,
@@ -85,7 +86,7 @@ http.route({
       }
 
       if (command === "/reset") {
-        await ctx.runMutation(internal.messages.clearChat, { chatId });
+        await ctx.runMutation(internal.messages.clearChat, { chatId, messageThreadId });
         await sendMessage(token, chatId, "Conversation history cleared.", {
           messageThreadId,
         });
@@ -97,7 +98,7 @@ http.route({
     const allowed = await ctx.runMutation(internal.messages.checkRateLimit, {
       chatId,
       userId,
-      maxPerMinute: 10,
+      maxPerMinute: Number(process.env.RATE_LIMIT_PER_MINUTE ?? "10"),
     });
 
     if (!allowed) {
@@ -115,6 +116,7 @@ http.route({
 
     await ctx.runMutation(internal.messages.store, {
       chatId,
+      messageThreadId,
       userId,
       userName,
       role: "user" as const,
