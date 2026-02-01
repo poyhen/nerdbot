@@ -34,6 +34,14 @@ export function buildUserName(firstName: string, lastName?: string): string {
   return firstName + (lastName ? ` ${lastName}` : "");
 }
 
+export function stripCitations(text: string): string {
+  return text
+    .replace(/\[\[\d+\]\]\([^)]*\)/g, "")
+    .replace(/【[^】]*†[^】]*】/g, "")
+    .replace(/ {2,}/g, " ")
+    .trim();
+}
+
 export function truncateResponse(text: string, maxLength = 4000): string {
   if (text.length > maxLength) {
     return text.slice(0, maxLength) + "\n\n[truncated]";

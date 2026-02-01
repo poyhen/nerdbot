@@ -6,6 +6,7 @@ import {
   parseCommand,
   stripMention,
   buildUserName,
+  stripCitations,
   truncateResponse,
   formatConversation,
   evaluateRateLimit,
@@ -164,6 +165,52 @@ describe("buildUserName", () => {
 
   test("handles undefined last name", () => {
     expect(buildUserName("Jane", undefined)).toBe("Jane");
+  });
+});
+
+describe("stripCitations", () => {
+  test("removes OpenAI-style citation markers", () => {
+    expect(stripCitations("Hello world【6†source】")).toBe("Hello world");
+  });
+
+  test("removes multiple citation markers", () => {
+    expect(stripCitations("Fact one【1†source】 and fact two【2†source】")).toBe(
+      "Fact one and fact two",
+    );
+  });
+
+  test("handles numbered source citations", () => {
+    expect(stripCitations("Text【6:0†source】 more【12:3†fn】")).toBe("Text more");
+  });
+
+  test("returns text unchanged when no citations present", () => {
+    expect(stripCitations("No citations here")).toBe("No citations here");
+  });
+
+  test("returns empty string for empty input", () => {
+    expect(stripCitations("")).toBe("");
+  });
+
+  test("collapses extra spaces left after stripping", () => {
+    expect(stripCitations("A 【1†source】 B")).toBe("A B");
+  });
+
+  test("removes markdown-style numbered citations", () => {
+    expect(stripCitations("Check this out[[1]](https://example.com) cool right")).toBe(
+      "Check this out cool right",
+    );
+  });
+
+  test("removes multiple markdown-style citations", () => {
+    expect(
+      stripCitations(
+        "Fact[[1]](https://a.com)[[2]](https://b.com) and more[[3]](https://c.com)",
+      ),
+    ).toBe("Fact and more");
+  });
+
+  test("removes mixed citation styles", () => {
+    expect(stripCitations("A【1†source】 B[[2]](https://example.com) C")).toBe("A B C");
   });
 });
 

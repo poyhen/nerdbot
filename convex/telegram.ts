@@ -6,6 +6,7 @@ import { sendMessage, sendChatAction, setWebhook } from "./lib/telegramApi";
 import { requireEnv } from "./lib/env";
 import {
   formatConversation,
+  stripCitations,
   truncateResponse,
   validateSystemPrompt,
 } from "./lib/helpers";
@@ -81,7 +82,7 @@ export const processMessage = internalAction({
         { webSearch },
       );
 
-      const responseText = truncateResponse(aiResponse.text);
+      const responseText = truncateResponse(stripCitations(aiResponse.text));
 
       log
         .set("inputTokens", aiResponse.inputTokens ?? null)
