@@ -18,6 +18,7 @@ convex/
   http.ts            - HTTP webhook endpoint (POST /api/telegram-webhook)
   telegram.ts        - Core bot logic (processMessage action, registerWebhook)
   messages.ts        - Internal mutations/queries for message storage
+  crons.ts           - Daily cron job to prune old messages
   lib/
     ai.ts            - AI provider abstraction (Moonshot, Claude, OpenAI)
     telegramApi.ts   - Telegram Bot API helpers (sendMessage, sendChatAction, setWebhook)
@@ -64,6 +65,8 @@ Set via `bunx convex env set <KEY> <VALUE>`:
 - **All messages stored**: Even messages the bot doesn't respond to are stored for conversation context.
 - **Internal functions**: All mutations/queries called by the bot are internal (not exposed publicly).
 - **Rate limiting**: Per-user, per-group, 10 requests/minute sliding window.
+- **Forum/topic support**: Bot replies in the same thread it received a message from via `message_thread_id`.
+- **Message cleanup**: Daily cron keeps only the latest 100 messages per chat, deletes the rest.
 
 ## Bot Commands
 
@@ -76,7 +79,6 @@ Set via `bunx convex env set <KEY> <VALUE>`:
 
 In groups, the bot responds when:
 - Mentioned with `@nerdbot`
-- Message is a reply to the bot's message
 - Message is a `/` command
 
 In private chats, the bot always responds.

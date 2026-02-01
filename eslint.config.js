@@ -1,10 +1,13 @@
+import { defineConfig } from "eslint/config";
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import prettier from "eslint-plugin-prettier/recommended";
+import convexPlugin from "@convex-dev/eslint-plugin";
 
-export default tseslint.config(
+export default defineConfig([
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
+  ...convexPlugin.configs.recommended,
   prettier,
   {
     languageOptions: {
@@ -14,7 +17,7 @@ export default tseslint.config(
       },
     },
     rules: {
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-unused-vars": [
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
@@ -42,6 +45,15 @@ export default tseslint.config(
     },
   },
   {
+    files: ["**/*.test.ts"],
+    rules: {
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/await-thenable": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-unnecessary-condition": "off",
+    },
+  },
+  {
     ignores: ["convex/_generated/**"],
   },
-);
+]);

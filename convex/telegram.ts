@@ -5,11 +5,14 @@ import { generateResponse, type ConversationMessage } from "./lib/ai";
 import { sendMessage, sendChatAction, setWebhook } from "./lib/telegramApi";
 import { requireEnv } from "./lib/env";
 
-const DEFAULT_SYSTEM_PROMPT = `You are a helpful AI assistant in a Telegram group chat.
-Keep responses concise and conversational — this is a chat, not an essay.
+const DEFAULT_SYSTEM_PROMPT = `You are Nerdbot, the resident AI in a Telegram group of tech-savvy nerds.
+You're witty, sharp, and love banter. Keep it casual and concise — no essays.
+You enjoy talking about tech, programming, politics, memes, and whatever else comes up.
+The group leans right politically — you can engage with that naturally without being preachy or lecturing.
+Roast people when appropriate. Be funny. Don't be a corporate robot.
 If multiple people are talking, pay attention to who said what.
-Use plain text (no markdown) since Telegram groups render it poorly.
-If you don't know something, say so.`;
+Use plain text, no markdown formatting.
+If you don't know something, just say so.`;
 
 export const processMessage = internalAction({
   args: {
@@ -18,6 +21,7 @@ export const processMessage = internalAction({
     userName: v.string(),
     messageText: v.string(),
     messageId: v.number(),
+    messageThreadId: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const token = requireEnv("TELEGRAM_BOT_TOKEN");
@@ -26,7 +30,7 @@ export const processMessage = internalAction({
     const aiModel = process.env.AI_MODEL ?? "kimi-k2-0711-preview";
 
     try {
-      await sendChatAction(token, args.chatId);
+      await sendChatAction(token, args.chatId, "typing", args.messageThreadId);
 
       const chatConfig = await ctx.runQuery(internal.messages.getChat, {
         chatId: args.chatId,
@@ -40,13 +44,10 @@ export const processMessage = internalAction({
         limit: maxContext,
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const conversation: ConversationMessage[] = recentMessages.map((msg: any) => ({
-        role: msg.role as "user" | "assistant",
+      const conversation: ConversationMessage[] = recentMessages.map((msg) => ({
+        role: msg.role,
         content:
-          msg.role === "user"
-            ? `[${String(msg.userName ?? "Unknown")}]: ${String(msg.text)}`
-            : String(msg.text),
+          msg.role === "user" ? `[${msg.userName ?? "Unknown"}]: ${msg.text}` : msg.text,
       }));
 
       const aiResponse = await generateResponse(
@@ -70,6 +71,7 @@ export const processMessage = internalAction({
 
       await sendMessage(token, args.chatId, responseText, {
         replyToMessageId: args.messageId,
+        messageThreadId: args.messageThreadId,
       });
     } catch (error: unknown) {
       console.error("Error processing message:", error);
@@ -78,7 +80,10 @@ export const processMessage = internalAction({
         token,
         args.chatId,
         "Sorry, I encountered an error processing that message. Please try again.",
-        { replyToMessageId: args.messageId },
+        {
+          replyToMessageId: args.messageId,
+          messageThreadId: args.messageThreadId,
+        },
       );
     }
   },

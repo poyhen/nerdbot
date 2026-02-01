@@ -9,6 +9,16 @@ export interface AIResponse {
   outputTokens?: number;
 }
 
+interface ClaudeAPIResponse {
+  content: { text: string }[];
+  usage?: { input_tokens?: number; output_tokens?: number };
+}
+
+interface OpenAIAPIResponse {
+  choices: { message: { content: string } }[];
+  usage?: { prompt_tokens?: number; completion_tokens?: number };
+}
+
 async function callClaude(
   apiKey: string,
   model: string,
@@ -38,9 +48,10 @@ async function callClaude(
     throw new Error(`Claude API error: ${response.status} - ${error}`);
   }
 
-  const data: any = await response.json();
+  const data = (await response.json()) as ClaudeAPIResponse;
+  const text = data.content[0]?.text ?? "";
   return {
-    text: data.content[0].text,
+    text,
     inputTokens: data.usage?.input_tokens,
     outputTokens: data.usage?.output_tokens,
   };
@@ -87,10 +98,10 @@ async function callOpenAICompatible(
     throw new Error(`${provider} API error: ${response.status} - ${error}`);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data: any = await response.json();
+  const data = (await response.json()) as OpenAIAPIResponse;
+  const text = data.choices[0]?.message.content ?? "";
   return {
-    text: data.choices[0].message.content,
+    text,
     inputTokens: data.usage?.prompt_tokens,
     outputTokens: data.usage?.completion_tokens,
   };

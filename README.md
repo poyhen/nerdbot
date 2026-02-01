@@ -62,6 +62,7 @@ bunx convex deploy
 
 ## Usage
 
-- **Groups**: Add @nerdbot to a group. Mention it with `@nerdbot` or reply to its messages.
+- **Groups**: Add @nerdbot to a group. Mention it with `@nerdbot` to chat. Supports forum topics — replies in the same thread.
 - **Private chat**: Message the bot directly.
 - `/reset` clears conversation history for the current chat.
+- Messages older than the latest 100 per chat are automatically pruned daily.

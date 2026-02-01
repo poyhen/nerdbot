@@ -7,10 +7,10 @@
     "dev": "bunx convex dev",
     "deploy": "bunx convex deploy",
     "register-webhook": "bunx convex run telegram:registerWebhook",
-    "lint": "eslint convex/",
-    "lint:fix": "eslint convex/ --fix",
-    "format": "prettier --write convex/",
-    "format:check": "prettier --check convex/",
+    "lint": "eslint convex/ tests/",
+    "lint:fix": "eslint convex/ tests/ --fix",
+    "format": "prettier --write convex/ tests/",
+    "format:check": "prettier --check convex/ tests/",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
@@ -26,6 +26,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@convex-dev/eslint-plugin": "^1.1.1",
     "convex": "^1.31.7"
   }
 }

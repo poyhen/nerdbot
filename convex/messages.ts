@@ -48,7 +48,7 @@ export const ensureChat = internalMutation({
 
     if (existing) {
       if (args.chatTitle && args.chatTitle !== existing.chatTitle) {
-        await ctx.db.patch(existing._id, { chatTitle: args.chatTitle });
+        await ctx.db.patch("chats", existing._id, { chatTitle: args.chatTitle });
       }
       return existing;
     }
@@ -59,7 +59,7 @@ export const ensureChat = internalMutation({
       enabled: true,
       createdAt: Date.now(),
     });
-    return await ctx.db.get(id);
+    return await ctx.db.get("chats", id);
   },
 });
 
@@ -102,7 +102,7 @@ export const checkRateLimit = internalMutation({
     }
 
     if (now - existing.windowStart > windowMs) {
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("rateLimits", existing._id, {
         windowStart: now,
         count: 1,
       });
@@ -113,7 +113,7 @@ export const checkRateLimit = internalMutation({
       return false;
     }
 
-    await ctx.db.patch(existing._id, {
+    await ctx.db.patch("rateLimits", existing._id, {
       count: existing.count + 1,
     });
     return true;
@@ -129,7 +129,37 @@ export const clearChat = internalMutation({
       .collect();
 
     for (const msg of messages) {
-      await ctx.db.delete(msg._id);
+      await ctx.db.delete("messages", msg._id);
+    }
+  },
+});
+
+// Delete old messages across all chats, keeping the latest 100 per chat.
+export const deleteOldMessages = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // Get all distinct chats that have messages
+    const chats = await ctx.db.query("chats").collect();
+
+    let totalDeleted = 0;
+    for (const chat of chats) {
+      // Get messages beyond the 100 most recent
+      const oldMessages = await ctx.db
+        .query("messages")
+        .withIndex("by_chat", (q) => q.eq("chatId", chat.chatId))
+        .order("desc")
+        .collect();
+
+      // Skip the first 100 (newest), delete the rest
+      const toDelete = oldMessages.slice(100);
+      for (const msg of toDelete) {
+        await ctx.db.delete("messages", msg._id);
+      }
+      totalDeleted += toDelete.length;
+    }
+
+    if (totalDeleted > 0) {
+      console.log(`Cron: deleted ${String(totalDeleted)} old messages`);
     }
   },
 });

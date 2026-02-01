@@ -4,6 +4,16 @@ import { internal } from "./_generated/api";
 import { sendMessage } from "./lib/telegramApi";
 import { requireEnv } from "./lib/env";
 
+interface TelegramUpdate {
+  message?: {
+    chat: { id: number; type: string; title?: string };
+    from: { id: number; first_name: string; last_name?: string };
+    text?: string;
+    message_id: number;
+    message_thread_id?: number;
+  };
+}
+
 const http = httpRouter();
 
 http.route({
@@ -19,10 +29,9 @@ http.route({
     }
 
     // 2. Parse the Telegram update
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let update: any;
+    let update: TelegramUpdate;
     try {
-      update = await request.json();
+      update = (await request.json()) as TelegramUpdate;
     } catch {
       return new Response("Bad request", { status: 400 });
     }
@@ -32,24 +41,25 @@ http.route({
       return new Response("OK", { status: 200 });
     }
 
-    const chatId: number = message.chat.id;
-    const userId: number = message.from.id;
-    const userName: string =
-      String(message.from.first_name) +
-      (message.from.last_name ? ` ${String(message.from.last_name)}` : "");
-    const messageText: string = message.text;
-    const messageId: number = message.message_id;
-    const chatTitle: string | undefined = message.chat.title;
+    const chatId = message.chat.id;
+    const userId = message.from.id;
+    const userName =
+      message.from.first_name +
+      (message.from.last_name ? ` ${message.from.last_name}` : "");
+    const messageText = message.text;
+    const messageId = message.message_id;
+    const chatTitle = message.chat.title;
+    const messageThreadId = message.message_thread_id;
     const botUsername = process.env.BOT_USERNAME ?? "";
     const token = requireEnv("TELEGRAM_BOT_TOKEN");
 
     // 3. Determine if the bot should respond
+    // In groups: only @mention or /commands. No reply-to-bot trigger.
     const isPrivateChat = message.chat.type === "private";
     const isMentioned = messageText.includes(`@${botUsername}`);
-    const isReplyToBot = message.reply_to_message?.from?.username === botUsername;
     const isCommand = messageText.startsWith("/");
 
-    const shouldRespond = isPrivateChat || isMentioned || isReplyToBot || isCommand;
+    const shouldRespond = isPrivateChat || isMentioned || isCommand;
 
     if (!shouldRespond) {
       // Store message for context but don't respond
@@ -66,23 +76,26 @@ http.route({
 
     // 4. Handle commands
     if (isCommand) {
-      const command = messageText.split(" ")[0].split("@")[0];
+      const command = messageText.split(" ")[0]?.split("@")[0];
 
       if (command === "/start" || command === "/help") {
         await sendMessage(
           token,
           chatId,
-          `Hi! I'm an AI assistant. Mention me with @${botUsername} or reply to my messages to chat.\n\n` +
+          `Hi! I'm an AI assistant. Mention me with @${botUsername} to chat.\n\n` +
             "Commands:\n" +
             "/help — Show this message\n" +
             "/reset — Clear conversation history",
+          { messageThreadId },
         );
         return new Response("OK", { status: 200 });
       }
 
       if (command === "/reset") {
         await ctx.runMutation(internal.messages.clearChat, { chatId });
-        await sendMessage(token, chatId, "Conversation history cleared.");
+        await sendMessage(token, chatId, "Conversation history cleared.", {
+          messageThreadId,
+        });
         return new Response("OK", { status: 200 });
       }
     }
@@ -99,7 +112,7 @@ http.route({
         token,
         chatId,
         "You're sending messages too fast. Please wait a moment.",
-        { replyToMessageId: messageId },
+        { replyToMessageId: messageId, messageThreadId },
       );
       return new Response("OK", { status: 200 });
     }
@@ -130,6 +143,7 @@ http.route({
       userName,
       messageText: cleanText,
       messageId,
+      messageThreadId,
     });
 
     return new Response("OK", { status: 200 });
