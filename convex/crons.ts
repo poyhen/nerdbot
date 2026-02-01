@@ -3,10 +3,6 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-crons.daily(
-  "delete old messages",
-  { hourUTC: 4, minuteUTC: 0 },
-  internal.messages.deleteOldMessages,
-);
+crons.interval("delete old messages", { hours: 8 }, internal.messages.deleteOldMessages);
 
 export default crons;
