@@ -29,6 +29,7 @@ export const processMessage = internalAction({
     const aiProvider = process.env.AI_PROVIDER ?? "moonshot";
     const aiApiKey = requireEnv("AI_API_KEY");
     const aiModel = process.env.AI_MODEL ?? "kimi-k2-0711-preview";
+    const webSearch = process.env.MOONSHOT_WEB_SEARCH === "true";
 
     try {
       await sendChatAction(token, args.chatId, "typing", args.messageThreadId);
@@ -56,6 +57,7 @@ export const processMessage = internalAction({
         aiModel,
         systemPrompt,
         conversation,
+        { webSearch },
       );
 
       const responseText = truncateResponse(aiResponse.text);

@@ -78,6 +78,7 @@ Set via `bunx convex env set <KEY> <VALUE>`:
 | `ALLOWED_GROUP_IDS` | Comma-separated Telegram group/supergroup IDs the bot can operate in. **Required** for groups — private chats with allowed users always work |
 | `MAX_CONTEXT_MESSAGES` | Number of recent messages sent to the AI as context (default: `30`) |
 | `MAX_RETAINED_MESSAGES` | Number of messages kept per topic in the database before cron prunes (default: `100`) |
+| `MOONSHOT_WEB_SEARCH` | Set to `"true"` to enable Moonshot's built-in web search. Model decides when to search. (default: disabled) |
 
 ## Key Design Decisions
 

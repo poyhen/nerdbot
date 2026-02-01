@@ -20,14 +20,49 @@ function mockFetch(responseBody: unknown, ok = true, status = 200) {
   return fn;
 }
 
+interface MockResponse {
+  body: unknown;
+  ok?: boolean;
+  status?: number;
+}
+
+function mockFetchSequence(responses: MockResponse[]) {
+  let callIndex = 0;
+  const fallback: MockResponse = { body: {} };
+  const fn = mock(() => {
+    const idx = Math.min(callIndex, responses.length - 1);
+    const resp = responses[idx] ?? fallback;
+    callIndex++;
+    return Promise.resolve({
+      ok: resp.ok ?? true,
+      status: resp.status ?? 200,
+      json: () => Promise.resolve(resp.body),
+      text: () => Promise.resolve(JSON.stringify(resp.body)),
+    } as Response);
+  });
+  globalThis.fetch = fn as unknown as typeof fetch;
+  return fn;
+}
+
 function getCallArgs(fn: ReturnType<typeof mock>): [string, RequestInit] {
   const call = fn.mock.calls[0];
   if (!call) throw new Error("fetch was not called");
   return call as unknown as [string, RequestInit];
 }
 
+function getNthCallArgs(fn: ReturnType<typeof mock>, n: number): [string, RequestInit] {
+  const call = fn.mock.calls[n];
+  if (!call) throw new Error(`fetch call ${n} not found`);
+  return call as unknown as [string, RequestInit];
+}
+
 function getCallBody(fn: ReturnType<typeof mock>) {
   const [, options] = getCallArgs(fn);
+  return JSON.parse(options.body as string);
+}
+
+function getNthCallBody(fn: ReturnType<typeof mock>, n: number) {
+  const [, options] = getNthCallArgs(fn, n);
   return JSON.parse(options.body as string);
 }
 
@@ -194,6 +229,431 @@ describe("generateResponse", () => {
 
       const [url] = getCallArgs(fetchMock);
       expect(url).toBe("https://api.openai.com/v1/chat/completions");
+    });
+  });
+
+  describe("moonshot web search", () => {
+    test("includes tools array when webSearch is enabled", async () => {
+      const fetchMock = mockFetch({
+        choices: [
+          {
+            finish_reason: "stop",
+            message: { content: "Direct answer" },
+          },
+        ],
+        usage: { prompt_tokens: 10, completion_tokens: 5 },
+      });
+
+      await generateResponse(
+        "moonshot",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "Hi" }],
+        { webSearch: true },
+      );
+
+      const body = getCallBody(fetchMock);
+      expect(body.tools).toEqual([
+        {
+          type: "builtin_function",
+          function: { name: "$web_search" },
+        },
+      ]);
+    });
+
+    test("returns immediately on finish_reason stop", async () => {
+      const fetchMock = mockFetch({
+        choices: [
+          {
+            finish_reason: "stop",
+            message: { content: "Direct answer" },
+          },
+        ],
+        usage: { prompt_tokens: 10, completion_tokens: 5 },
+      });
+
+      const result = await generateResponse(
+        "moonshot",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "Hi" }],
+        { webSearch: true },
+      );
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(result.text).toBe("Direct answer");
+      expect(result.inputTokens).toBe(10);
+      expect(result.outputTokens).toBe(5);
+    });
+
+    test("handles single tool-call iteration", async () => {
+      const fetchMock = mockFetchSequence([
+        {
+          body: {
+            choices: [
+              {
+                finish_reason: "tool_calls",
+                message: {
+                  role: "assistant",
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: "call_1",
+                      type: "function",
+                      function: {
+                        name: "$web_search",
+                        arguments: '{"query":"test"}',
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+            usage: { prompt_tokens: 10, completion_tokens: 5 },
+          },
+        },
+        {
+          body: {
+            choices: [
+              {
+                finish_reason: "stop",
+                message: { content: "Answer after search" },
+              },
+            ],
+            usage: { prompt_tokens: 20, completion_tokens: 10 },
+          },
+        },
+      ]);
+
+      const result = await generateResponse(
+        "moonshot",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "search this" }],
+        { webSearch: true },
+      );
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(result.text).toBe("Answer after search");
+
+      // Verify second call includes tool messages
+      const body = getNthCallBody(fetchMock, 1);
+      const messages = body.messages;
+      const assistantMsg = messages.find((m: { tool_calls?: unknown[] }) => m.tool_calls);
+      expect(assistantMsg).toBeDefined();
+      expect(assistantMsg.role).toBe("assistant");
+
+      const toolMsg = messages.find((m: { role: string }) => m.role === "tool");
+      expect(toolMsg).toBeDefined();
+      expect(toolMsg.tool_call_id).toBe("call_1");
+      expect(toolMsg.name).toBe("$web_search");
+    });
+
+    test("handles multiple tool-call iterations", async () => {
+      const fetchMock = mockFetchSequence([
+        {
+          body: {
+            choices: [
+              {
+                finish_reason: "tool_calls",
+                message: {
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: "call_1",
+                      type: "function",
+                      function: {
+                        name: "$web_search",
+                        arguments: '{"query":"first"}',
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+            usage: { prompt_tokens: 10, completion_tokens: 5 },
+          },
+        },
+        {
+          body: {
+            choices: [
+              {
+                finish_reason: "tool_calls",
+                message: {
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: "call_2",
+                      type: "function",
+                      function: {
+                        name: "$web_search",
+                        arguments: '{"query":"second"}',
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+            usage: { prompt_tokens: 15, completion_tokens: 5 },
+          },
+        },
+        {
+          body: {
+            choices: [
+              {
+                finish_reason: "stop",
+                message: { content: "Final answer" },
+              },
+            ],
+            usage: { prompt_tokens: 20, completion_tokens: 10 },
+          },
+        },
+      ]);
+
+      const result = await generateResponse(
+        "moonshot",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "search" }],
+        { webSearch: true },
+      );
+
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(result.text).toBe("Final answer");
+    });
+
+    test("accumulates token usage across iterations", async () => {
+      mockFetchSequence([
+        {
+          body: {
+            choices: [
+              {
+                finish_reason: "tool_calls",
+                message: {
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: "call_1",
+                      type: "function",
+                      function: {
+                        name: "$web_search",
+                        arguments: '{"query":"q"}',
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+            usage: { prompt_tokens: 10, completion_tokens: 5 },
+          },
+        },
+        {
+          body: {
+            choices: [
+              {
+                finish_reason: "stop",
+                message: { content: "done" },
+              },
+            ],
+            usage: { prompt_tokens: 20, completion_tokens: 8 },
+          },
+        },
+      ]);
+
+      const result = await generateResponse(
+        "moonshot",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "search" }],
+        { webSearch: true },
+      );
+
+      expect(result.inputTokens).toBe(30);
+      expect(result.outputTokens).toBe(13);
+    });
+
+    test("throws on max iterations exceeded", async () => {
+      // All responses are tool_calls — never resolves
+      const toolCallResponse = {
+        body: {
+          choices: [
+            {
+              finish_reason: "tool_calls",
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: "call_loop",
+                    type: "function",
+                    function: {
+                      name: "$web_search",
+                      arguments: '{"query":"loop"}',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+          usage: { prompt_tokens: 10, completion_tokens: 5 },
+        },
+      };
+
+      mockFetchSequence([
+        toolCallResponse,
+        toolCallResponse,
+        toolCallResponse,
+        toolCallResponse,
+        toolCallResponse,
+      ]);
+
+      await expect(
+        generateResponse(
+          "moonshot",
+          "key",
+          "model",
+          "prompt",
+          [{ role: "user", content: "loop" }],
+          { webSearch: true },
+        ),
+      ).rejects.toThrow("exceeded maximum iterations");
+    });
+
+    test("throws on API error during loop", async () => {
+      mockFetchSequence([
+        {
+          body: {
+            choices: [
+              {
+                finish_reason: "tool_calls",
+                message: {
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: "call_1",
+                      type: "function",
+                      function: {
+                        name: "$web_search",
+                        arguments: '{"query":"q"}',
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+            usage: { prompt_tokens: 10, completion_tokens: 5 },
+          },
+        },
+        { body: { error: "server error" }, ok: false, status: 500 },
+      ]);
+
+      await expect(
+        generateResponse(
+          "moonshot",
+          "key",
+          "model",
+          "prompt",
+          [{ role: "user", content: "Hi" }],
+          { webSearch: true },
+        ),
+      ).rejects.toThrow("moonshot API error: 500");
+    });
+
+    test("does not send tools when webSearch is false", async () => {
+      const fetchMock = mockFetch({
+        choices: [{ message: { content: "response" } }],
+        usage: {},
+      });
+
+      await generateResponse(
+        "moonshot",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "Hi" }],
+        { webSearch: false },
+      );
+
+      const body = getCallBody(fetchMock);
+      expect(body.tools).toBeUndefined();
+    });
+
+    test("does not send tools when options omitted", async () => {
+      const fetchMock = mockFetch({
+        choices: [{ message: { content: "response" } }],
+        usage: {},
+      });
+
+      await generateResponse("moonshot", "key", "model", "prompt", [
+        { role: "user", content: "Hi" },
+      ]);
+
+      const body = getCallBody(fetchMock);
+      expect(body.tools).toBeUndefined();
+    });
+
+    test("openai provider ignores webSearch option", async () => {
+      const fetchMock = mockFetch({
+        choices: [{ message: { content: "response" } }],
+        usage: {},
+      });
+
+      await generateResponse(
+        "openai",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "Hi" }],
+        { webSearch: true },
+      );
+
+      const body = getCallBody(fetchMock);
+      expect(body.tools).toBeUndefined();
+    });
+
+    test("handles unexpected finish_reason gracefully", async () => {
+      mockFetch({
+        choices: [
+          {
+            finish_reason: "length",
+            message: { content: "Truncated response" },
+          },
+        ],
+        usage: { prompt_tokens: 10, completion_tokens: 100 },
+      });
+
+      const result = await generateResponse(
+        "moonshot",
+        "key",
+        "model",
+        "prompt",
+        [{ role: "user", content: "Hi" }],
+        { webSearch: true },
+      );
+
+      expect(result.text).toBe("Truncated response");
+    });
+
+    test("throws when response has no choices", async () => {
+      mockFetch({
+        choices: [],
+        usage: {},
+      });
+
+      await expect(
+        generateResponse(
+          "moonshot",
+          "key",
+          "model",
+          "prompt",
+          [{ role: "user", content: "Hi" }],
+          { webSearch: true },
+        ),
+      ).rejects.toThrow("moonshot API returned no choices");
     });
   });
 });
