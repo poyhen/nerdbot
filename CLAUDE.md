@@ -74,6 +74,8 @@ Set via `bunx convex env set <KEY> <VALUE>`:
 | `AI_MODEL` | e.g. `"kimi-k2-0711-preview"`, `"claude-sonnet-4-20250514"`, `"gpt-4o"` |
 | `BOT_USERNAME` | `nerdbot` (without @) |
 | `RATE_LIMIT_PER_MINUTE` | Max messages per user per group per minute (default: `10`) |
+| `ALLOWED_USER_IDS` | Comma-separated Telegram user IDs allowed to use the bot. **Required** — bot blocks everyone if not set |
+| `ALLOWED_GROUP_IDS` | Comma-separated Telegram group/supergroup IDs the bot can operate in. **Required** for groups — private chats with allowed users always work |
 
 ## Key Design Decisions
 

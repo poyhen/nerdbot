@@ -1,6 +1,8 @@
 import { test, expect, describe } from "bun:test";
 import {
   shouldRespond,
+  isAllowedUser,
+  isAllowedChat,
   parseCommand,
   stripMention,
   buildUserName,
@@ -44,6 +46,55 @@ describe("shouldRespond", () => {
 
   test("does not treat reply-to-bot as trigger", () => {
     expect(shouldRespond("group", "I agree with that", "nerdbot")).toBe(false);
+  });
+});
+
+describe("isAllowedUser", () => {
+  test("blocks everyone when allowlist is empty", () => {
+    expect(isAllowedUser(12345, "")).toBe(false);
+  });
+
+  test("allows user in allowlist", () => {
+    expect(isAllowedUser(111, "111,222,333")).toBe(true);
+  });
+
+  test("blocks user not in allowlist", () => {
+    expect(isAllowedUser(999, "111,222,333")).toBe(false);
+  });
+
+  test("handles whitespace in allowlist", () => {
+    expect(isAllowedUser(222, "111, 222, 333")).toBe(true);
+  });
+
+  test("handles single user allowlist", () => {
+    expect(isAllowedUser(111, "111")).toBe(true);
+    expect(isAllowedUser(222, "111")).toBe(false);
+  });
+});
+
+describe("isAllowedChat", () => {
+  test("always allows private chats", () => {
+    expect(isAllowedChat(12345, "private", "")).toBe(true);
+  });
+
+  test("blocks groups when allowlist is empty", () => {
+    expect(isAllowedChat(-100123, "group", "")).toBe(false);
+  });
+
+  test("blocks supergroups when allowlist is empty", () => {
+    expect(isAllowedChat(-100123, "supergroup", "")).toBe(false);
+  });
+
+  test("allows group in allowlist", () => {
+    expect(isAllowedChat(-100123, "group", "-100123,-100456")).toBe(true);
+  });
+
+  test("blocks group not in allowlist", () => {
+    expect(isAllowedChat(-100999, "group", "-100123,-100456")).toBe(false);
+  });
+
+  test("handles whitespace in allowlist", () => {
+    expect(isAllowedChat(-100123, "supergroup", "-100123, -100456")).toBe(true);
   });
 });
 

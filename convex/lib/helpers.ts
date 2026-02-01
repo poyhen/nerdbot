@@ -9,6 +9,23 @@ export function shouldRespond(
   return isPrivateChat || isMentioned || isCommand;
 }
 
+export function isAllowedUser(userId: number, allowlist: string): boolean {
+  if (!allowlist) return false;
+  const ids = allowlist.split(",").map((id) => id.trim());
+  return ids.includes(String(userId));
+}
+
+export function isAllowedChat(
+  chatId: number,
+  chatType: string,
+  allowlist: string,
+): boolean {
+  if (chatType === "private") return true;
+  if (!allowlist) return false;
+  const ids = allowlist.split(",").map((id) => id.trim());
+  return ids.includes(String(chatId));
+}
+
 export function parseCommand(messageText: string): string | undefined {
   return messageText.split(" ")[0]?.split("@")[0];
 }

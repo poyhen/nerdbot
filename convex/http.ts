@@ -3,7 +3,14 @@ import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { sendMessage } from "./lib/telegramApi";
 import { requireEnv } from "./lib/env";
-import { shouldRespond, parseCommand, stripMention, buildUserName } from "./lib/helpers";
+import {
+  shouldRespond,
+  isAllowedUser,
+  isAllowedChat,
+  parseCommand,
+  stripMention,
+  buildUserName,
+} from "./lib/helpers";
 
 interface TelegramUpdate {
   message?: {
@@ -52,7 +59,15 @@ http.route({
     const botUsername = process.env.BOT_USERNAME ?? "";
     const token = requireEnv("TELEGRAM_BOT_TOKEN");
 
-    // 3. Determine if the bot should respond
+    // 3. Check allowlists
+    if (!isAllowedUser(userId, process.env.ALLOWED_USER_IDS ?? "")) {
+      return new Response("OK", { status: 200 });
+    }
+    if (!isAllowedChat(chatId, message.chat.type, process.env.ALLOWED_GROUP_IDS ?? "")) {
+      return new Response("OK", { status: 200 });
+    }
+
+    // 4. Determine if the bot should respond
     // In groups: only @mention or /commands. No reply-to-bot trigger.
     if (!shouldRespond(message.chat.type, messageText, botUsername)) {
       // Store message for context but don't respond

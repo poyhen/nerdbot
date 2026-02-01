@@ -31,6 +31,8 @@ bunx convex env set AI_PROVIDER "moonshot"
 bunx convex env set AI_API_KEY "your-moonshot-api-key"
 bunx convex env set AI_MODEL "kimi-k2-0711-preview"
 bunx convex env set BOT_USERNAME "nerdbot"
+bunx convex env set ALLOWED_USER_IDS "comma-separated-telegram-user-ids"
+bunx convex env set ALLOWED_GROUP_IDS "comma-separated-telegram-group-ids"
 ```
 
 ### Register Webhook
