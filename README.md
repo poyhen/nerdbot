@@ -35,6 +35,14 @@ bunx convex env set ALLOWED_USER_IDS "comma-separated-telegram-user-ids"
 bunx convex env set ALLOWED_GROUP_IDS "comma-separated-telegram-group-ids"
 ```
 
+Optional settings (have sensible defaults):
+
+```bash
+bunx convex env set RATE_LIMIT_PER_MINUTE "10"
+bunx convex env set MAX_CONTEXT_MESSAGES "30"
+bunx convex env set MAX_RETAINED_MESSAGES "100"
+```
+
 ### Register Webhook
 
 ```bash
@@ -75,4 +83,5 @@ bunx convex deploy
 - **Groups**: Add @nerdbot to a group. Mention it with `@nerdbot` to chat. Supports forum topics — replies in the same thread.
 - **Private chat**: Message the bot directly.
 - `/reset` clears conversation history for the current chat.
-- Messages older than the latest 100 per chat are automatically pruned daily.
+- Messages older than the latest 100 per topic are automatically pruned daily (configurable via `MAX_RETAINED_MESSAGES`).
+- Only whitelisted users and groups can interact with the bot — check Convex logs for blocked user/group IDs.

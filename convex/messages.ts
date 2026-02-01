@@ -154,9 +154,9 @@ export const deleteOldMessages = internalMutation({
 
     let totalDeleted = 0;
     for (const msgs of groups.values()) {
-      // Sort newest first, keep 100, delete the rest
+      const maxRetained = Number(process.env.MAX_RETAINED_MESSAGES ?? "100");
       msgs.sort((a, b) => b.timestamp - a.timestamp);
-      const toDelete = msgs.slice(100);
+      const toDelete = msgs.slice(maxRetained);
       for (const msg of toDelete) {
         await ctx.db.delete("messages", msg._id);
       }

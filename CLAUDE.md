@@ -76,6 +76,8 @@ Set via `bunx convex env set <KEY> <VALUE>`:
 | `RATE_LIMIT_PER_MINUTE` | Max messages per user per group per minute (default: `10`) |
 | `ALLOWED_USER_IDS` | Comma-separated Telegram user IDs allowed to use the bot. **Required** — bot blocks everyone if not set |
 | `ALLOWED_GROUP_IDS` | Comma-separated Telegram group/supergroup IDs the bot can operate in. **Required** for groups — private chats with allowed users always work |
+| `MAX_CONTEXT_MESSAGES` | Number of recent messages sent to the AI as context (default: `30`) |
+| `MAX_RETAINED_MESSAGES` | Number of messages kept per topic in the database before cron prunes (default: `100`) |
 
 ## Key Design Decisions
 
