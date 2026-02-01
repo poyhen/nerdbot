@@ -2,11 +2,12 @@ export function shouldRespond(
   chatType: string,
   messageText: string,
   botUsername: string,
+  isReplyToBot: boolean,
 ): boolean {
   const isPrivateChat = chatType === "private";
   const isMentioned = messageText.includes(`@${botUsername}`);
   const isCommand = messageText.startsWith("/");
-  return isPrivateChat || isMentioned || isCommand;
+  return isPrivateChat || isMentioned || isCommand || isReplyToBot;
 }
 
 export function isAllowedUser(userId: number, allowlist: string): boolean {

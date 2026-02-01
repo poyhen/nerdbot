@@ -19,6 +19,7 @@ interface TelegramUpdate {
     text?: string;
     message_id: number;
     message_thread_id?: number;
+    reply_to_message?: { from?: { id: number; is_bot?: boolean } };
   };
 }
 
@@ -75,8 +76,8 @@ http.route({
     }
 
     // 4. Determine if the bot should respond
-    // In groups: only @mention or /commands. No reply-to-bot trigger.
-    if (!shouldRespond(message.chat.type, messageText, botUsername)) {
+    const isReplyToBot = message.reply_to_message?.from?.is_bot === true;
+    if (!shouldRespond(message.chat.type, messageText, botUsername, isReplyToBot)) {
       // Store message for context but don't respond
       await ctx.runMutation(internal.messages.store, {
         chatId,

@@ -13,39 +13,45 @@ import {
 
 describe("shouldRespond", () => {
   test("always responds in private chat", () => {
-    expect(shouldRespond("private", "hello", "nerdbot")).toBe(true);
+    expect(shouldRespond("private", "hello", "nerdbot", false)).toBe(true);
   });
 
   test("responds to @mention in group", () => {
-    expect(shouldRespond("group", "hey @nerdbot what's up", "nerdbot")).toBe(true);
+    expect(shouldRespond("group", "hey @nerdbot what's up", "nerdbot", false)).toBe(true);
   });
 
   test("responds to /command in group", () => {
-    expect(shouldRespond("group", "/help", "nerdbot")).toBe(true);
+    expect(shouldRespond("group", "/help", "nerdbot", false)).toBe(true);
   });
 
   test("does not respond to plain message in group", () => {
-    expect(shouldRespond("group", "just chatting", "nerdbot")).toBe(false);
+    expect(shouldRespond("group", "just chatting", "nerdbot", false)).toBe(false);
   });
 
   test("does not respond to plain message in supergroup", () => {
-    expect(shouldRespond("supergroup", "hey everyone", "nerdbot")).toBe(false);
+    expect(shouldRespond("supergroup", "hey everyone", "nerdbot", false)).toBe(false);
   });
 
   test("responds to mention in supergroup", () => {
-    expect(shouldRespond("supergroup", "@nerdbot help me", "nerdbot")).toBe(true);
+    expect(shouldRespond("supergroup", "@nerdbot help me", "nerdbot", false)).toBe(true);
   });
 
   test("does not respond when different bot is mentioned", () => {
-    expect(shouldRespond("group", "hey @otherbot", "nerdbot")).toBe(false);
+    expect(shouldRespond("group", "hey @otherbot", "nerdbot", false)).toBe(false);
   });
 
   test("responds to mention anywhere in text", () => {
-    expect(shouldRespond("group", "what do you think @nerdbot?", "nerdbot")).toBe(true);
+    expect(shouldRespond("group", "what do you think @nerdbot?", "nerdbot", false)).toBe(
+      true,
+    );
   });
 
-  test("does not treat reply-to-bot as trigger", () => {
-    expect(shouldRespond("group", "I agree with that", "nerdbot")).toBe(false);
+  test("responds when replying to bot", () => {
+    expect(shouldRespond("group", "I agree with that", "nerdbot", true)).toBe(true);
+  });
+
+  test("does not respond to plain message without reply to bot", () => {
+    expect(shouldRespond("group", "I agree with that", "nerdbot", false)).toBe(false);
   });
 });
 
